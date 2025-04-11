@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VulnerWeb</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .vulnerable { background-color: #ffdddd; padding: 10px; margin: 10px 0; }
+        .secure { background-color: #ddffdd; padding: 10px; margin: 10px 0; }
+        .panel {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .danger { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Sitio de Pruebas de Seguridad</h1>
+    <p>Este sitio contiene vulnerabilidades intencionales para pruebas de hacking y también implementaciones seguras para comparación.</p>
+
+    <!-- Panel de información de sesión -->
+    <div class="panel" id="sessionInfo">
+        <h2>Información de Sesión</h2>
+        <div id="sessionData"></div>
+    </div>
+
+    <!-- Login vulnerable -->
+    <div class="panel vulnerable">
+        <h2 class="danger">Login Vulnerable (SQL Injection)</h2>
+        <form id="vulnerableLogin" action="javascript:void(0);">
+            <input type="text" name="username" placeholder="Usuario" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+        <p><small>Prueba con: ' OR '1'='1' --</small></p>
+        <div id="vulnerableLoginResult"></div>
+    </div>
+
+    <!-- Login seguro -->
+    <div class="panel secure">
+        <h2 class="success">Login Seguro</h2>
+        <form id="secureLogin" action="javascript:void(0);">
+            <input type="text" name="username" placeholder="Usuario" required>
+            <input type="password" name="password" placeholder="Contraseña" required>
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+        <div id="secureLoginResult"></div>
+    </div>
+
+    <!-- Búsqueda vulnerable -->
+    <div class="panel vulnerable">
+        <h2 class="danger">Búsqueda Vulnerable (XSS)</h2>
+        <form id="vulnerableSearch" action="javascript:void(0);">
+            <input type="text" name="query" placeholder="Buscar..." required>
+            <button type="submit">Buscar</button>
+        </form>
+        <p><small>Prueba con: &lt;script&gt;alert('XSS')&lt;/script&gt;</small></p>
+        <div id="vulnerableSearchResults"></div>
+    </div>
+
+    <!-- Búsqueda segura -->
+    <div class="panel secure">
+        <h2 class="success">Búsqueda Segura</h2>
+        <form id="secureSearch" action="javascript:void(0);">
+            <input type="text" name="query" placeholder="Buscar..." required>
+            <button type="submit">Buscar</button>
+        </form>
+        <div id="secureSearchResults"></div>
+    </div>
+
+    <!-- Subida de archivos vulnerable -->
+    <div class="panel vulnerable">
+        <h2 class="danger">Subida de Archivos Vulnerable</h2>
+        <form id="vulnerableUpload" action="javascript:void(0);">
+            <input type="file" name="file" required>
+            <button type="submit">Subir Archivo</button>
+        </form>
+        <p><small>Prueba subiendo un archivo .php o .exe</small></p>
+        <div id="vulnerableUploadResult"></div>
+    </div>
+
+    <!-- Subida de archivos segura -->
+    <div class="panel secure">
+        <h2 class="success">Subida de Archivos Segura</h2>
+        <form id="secureUpload" action="javascript:void(0);">
+            <input type="file" name="file" required>
+            <button type="submit">Subir Archivo</button>
+        </form>
+        <div id="secureUploadResult"></div>
+    </div>
+
+    <!-- Panel de administración vulnerable -->
+    <div class="panel vulnerable" id="adminPanel" style="display:none;">
+        <h2 class="danger">Panel de Administración Vulnerable</h2>
+        <p>Bienvenido, administrador. Aquí puedes gestionar usuarios.</p>
+        <div id="adminActions">
+            <button onclick="deleteUser(1)">Eliminar Usuario 1</button>
+            <button onclick="showAPIKey()">Mostrar API Key</button>
+        </div>
+        <div id="adminResult"></div>
+    </div>
+
+    <!-- CSRF vulnerable -->
+    <div class="panel vulnerable">
+        <h2 class="danger">CSRF Vulnerable</h2>
+        <p>Este enlace cambia la contraseña del usuario sin verificación:</p>
+        <a href="javascript:changePasswordVulnerable('hacker123')">Haz clic para ganar un premio</a>
+    </div>
+
+    <!-- CSRF protegido -->
+    <div class="panel secure">
+        <h2 class="success">CSRF Protegido</h2>
+        <p>Este enlace requiere verificación para cambiar la contraseña:</p>
+        <a href="javascript:changePasswordSecure('hacker123')">Haz clic para cambiar contraseña (requiere confirmación)</a>
+    </div>
+
+    <!-- API vulnerable -->
+    <div class="panel vulnerable">
+        <h2 class="danger">API Vulnerable (No CORS)</h2>
+        <button onclick="fetchVulnerableAPI()">Obtener Datos Sensibles</button>
+        <pre id="vulnerableAPIResult"></pre>
+    </div>
+
+    <!-- API segura -->
+    <div class="panel secure">
+        <h2 class="success">API Segura (CORS)</h2>
+        <button onclick="fetchSecureAPI()">Obtener Datos Públicos</button>
+        <pre id="secureAPIResult"></pre>
+    </div>
+
+    <script>
+        // Datos simulados de la base de datos
+        const fakeDB = {
+            users: [
+                { id: 1, username: 'admin', password: 'admin123', role: 'admin', apiKey: 'SECRET-API-KEY-123' },
+                { id: 2, username: 'user1', password: 'password1', role: 'user' }
+            ],
+            products: [
+                { id: 1, name: 'Producto 1', price: 10 },
+                { id: 2, name: 'Producto 2', price: 20 }
+            ]
+        };
+
+        let currentUser = null;
+        let csrfTokenSecure = Math.random().toString(36).substring(2);
+
+        // Mostrar información de sesión
+        function updateSessionInfo() {
+            const sessionData = document.getElementById('sessionData');
+            if (currentUser) {
+                sessionData.innerHTML = `
+                    <p>Usuario: ${currentUser.username} (${currentUser.role})</p>
+                    <p>Token CSRF (seguro): ${csrfTokenSecure}</p>
+                    <button onclick="logout()">Cerrar Sesión</button>
+                `;
+                
+                if (currentUser.role === 'admin') {
+                    document.getElementById('adminPanel').style.display = 'block';
+                }
+            } else {
+                sessionData.innerHTML = '<p>No hay sesión activa</p>';
+                document.getElementById('adminPanel').style.display = 'none';
+            }
+        }
+
+        // Login vulnerable a SQLi
+        document.getElementById('vulnerableLogin').addEventListener('submit', function(e) {
+            const username = this.username.value;
+            const password = this.password.value;
+            
+            // Simulación de SQL Injection
+            if (username.includes("' OR '1'='1") || password.includes("' OR '1'='1")) {
+                currentUser = fakeDB.users[0]; // Logeamos como admin
+                document.getElementById('vulnerableLoginResult').innerHTML = 
+                    '<p class="danger">¡Inicio de sesión exitoso (vulnerable a SQLi)!</p>';
+                updateSessionInfo();
+            } else {
+                const user = fakeDB.users.find(u => u.username === username && u.password === password);
+                if (user) {
+                    currentUser = user;
+                    document.getElementById('vulnerableLoginResult').innerHTML = '<p>Inicio de sesión exitoso</p>';
+                    updateSessionInfo();
+                } else {
+                    document.getElementById('vulnerableLoginResult').innerHTML = 
+                        '<p class="danger">Credenciales incorrectas</p>';
+                }
+            }
+        });
+
+        // Login seguro
+        document.getElementById('secureLogin').addEventListener('submit', function(e) {
+            const username = this.username.value;
+            const password = this.password.value;
+            
+            // Validación segura
+            if (username.includes("'") || username.includes("--") || username.includes(";") ||
+                password.includes("'") || password.includes("--") || password.includes(";")) {
+                document.getElementById('secureLoginResult').innerHTML = 
+                    '<p class="danger">Caracteres no permitidos detectados</p>';
+                return;
+            }
+            
+            const user = fakeDB.users.find(u => u.username === username && u.password === password);
+            if (user) {
+                currentUser = user;
+                document.getElementById('secureLoginResult').innerHTML = '<p>Inicio de sesión exitoso</p>';
+                updateSessionInfo();
+            } else {
+                document.getElementById('secureLoginResult').innerHTML = '<p>Credenciales incorrectas</p>';
+            }
+        });
+
+        // Búsqueda vulnerable a XSS
+        document.getElementById('vulnerableSearch').addEventListener('submit', function(e) {
+            const query = this.query.value;
+            document.getElementById('vulnerableSearchResults').innerHTML = 
+                `<p>Resultados para: ${query}</p>` +
+                `<p>Se encontraron 2 productos que coinciden con "${query}"</p>`;
+        });
+
+        // Búsqueda segura
+        document.getElementById('secureSearch').addEventListener('submit', function(e) {
+            const query = this.query.value;
+            const safeQuery = query.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            document.getElementById('secureSearchResults').innerHTML = 
+                `<p>Resultados para: ${safeQuery}</p>` +
+                `<p>Se encontraron 2 productos que coinciden con "${safeQuery}"</p>`;
+        });
+
+        // Subida de archivos vulnerable
+        document.getElementById('vulnerableUpload').addEventListener('submit', function(e) {
+            const fileInput = this.file;
+            const fileName = fileInput.files[0]?.name || '';
+            document.getElementById('vulnerableUploadResult').innerHTML = 
+                `<p class="danger">Archivo "${fileName}" subido exitosamente (sin validación)</p>`;
+        });
+
+        // Subida de archivos segura
+        document.getElementById('secureUpload').addEventListener('submit', function(e) {
+            const fileInput = this.file;
+            const file = fileInput.files[0];
+            if (!file) return;
+            
+            const fileName = file.name;
+            const allowedExtensions = ['jpg', 'jpeg', 'png', 'gif', 'pdf'];
+            const extension = fileName.split('.').pop().toLowerCase();
+            
+            if (!allowedExtensions.includes(extension)) {
+                document.getElementById('secureUploadResult').innerHTML = 
+                    '<p class="danger">Tipo de archivo no permitido</p>';
+                return;
+            }
+            
+            document.getElementById('secureUploadResult').innerHTML = 
+                `<p>Archivo "${fileName}" subido exitosamente (validado)</p>`;
+        });
+
+        // Funciones de administración vulnerables
+        function deleteUser(id) {
+            document.getElementById('adminResult').innerHTML = 
+                `<p class="danger">Usuario ${id} eliminado sin verificación de permisos</p>`;
+        }
+
+        function showAPIKey() {
+            if (currentUser && currentUser.role === 'admin') {
+                document.getElementById('adminResult').innerHTML = 
+                    `<p class="danger">API Key: ${currentUser.apiKey}</p>`;
+            }
+        }
+
+        // CSRF vulnerable
+        function changePasswordVulnerable(newPassword) {
+            if (currentUser) {
+                currentUser.password = newPassword;
+                alert(`Contraseña cambiada a ${newPassword} sin verificación CSRF`);
+            }
+        }
+
+        // CSRF protegido
+        function changePasswordSecure(newPassword) {
+            if (currentUser) {
+                const confirmed = confirm(`¿Estás seguro de cambiar tu contraseña a ${newPassword}?`);
+                if (confirmed) {
+                    const token = prompt("Introduce tu token CSRF:");
+                    if (token === csrfTokenSecure) {
+                        currentUser.password = newPassword;
+                        alert("Contraseña cambiada exitosamente con verificación CSRF");
+                    } else {
+                        alert("Token CSRF incorrecto");
+                    }
+                }
+            }
+        }
+
+        // API vulnerable
+        function fetchVulnerableAPI() {
+            fetch('https://jsonplaceholder.typicode.com/users')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('vulnerableAPIResult').textContent = 
+                        JSON.stringify(data.slice(0, 2), null, 2) + 
+                        '\n\n// Vulnerable: No verificación CORS, datos sensibles expuestos';
+                });
+        }
+
+        // API segura
+        function fetchSecureAPI() {
+            fetch('https://jsonplaceholder.typicode.com/posts')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('secureAPIResult').textContent = 
+                        JSON.stringify(data.slice(0, 2), null, 2) + 
+                        '\n\n// Seguro: Solo datos públicos, CORS configurado correctamente';
+                });
+        }
+
+        // Logout
+        function logout() {
+            currentUser = null;
+            updateSessionInfo();
+            document.getElementById('vulnerableLoginResult').innerHTML = '';
+            document.getElementById('secureLoginResult').innerHTML = '';
+            document.getElementById('adminResult').innerHTML = '';
+        }
+
+        // Inicializar
+        updateSessionInfo();
+    </script>
+</body>
+</html>
